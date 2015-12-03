@@ -69,7 +69,15 @@ function Triangle(p1, p2, p3) {
 		x = p3.x;
 		y = p3.y;
 		ctx.lineTo(x,y);
-		ctx.fillStyle = getRandomColor();
+		var grd=ctx.createLinearGradient(p1.x,p1.y,p2.x,p2.y);
+		console.log(c2);
+		var c1 = getRandomColor();
+		console.log(c1);
+		var c2 = getRandomColor();
+		console.log(c2);
+		grd.addColorStop(0,c1);
+		grd.addColorStop(1,c2);
+		ctx.fillStyle = grd;
 		ctx.fill();
 	}
 }
@@ -111,7 +119,6 @@ function circumRadius(t) {
 
 function pointInside(p, t) {
 	var center = circumCenter(t);
-	console.log(center);
 	var dist1 = dist(t.p1, center);
 	var dist2 = dist(p, center);
 	if (dist2 > dist1) {
