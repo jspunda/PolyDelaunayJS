@@ -225,25 +225,27 @@ $(document).ready(function(){
 
 	var pointlist = [];
 
-	for (var i = 0; i < 130;i++) {
-		var x = rInt(80, 800);
-		var y = rInt(80,x);
+	for (var i = 0; i < 500; i++){
+		var x = rInt(0, 1920);
+		var y = rInt(0,1080);
 		pointlist.push(new Point(x,y));
 	}
 
-	pointlist.push(new Point(50,50));
-	pointlist.push(new Point(850,50));
-	pointlist.push(new Point(850,850));
+	pointlist.push(new Point(-1000,-100));
+	pointlist.push(new Point(3900,-100));
+	pointlist.push(new Point(850,12850));
+
 
 	for (var i = 0; i < pointlist.length; i++) {
-		ctx.fillRect(pointlist[i].x,pointlist[i].y,4,4);
+		//ctx.fillRect(pointlist[i].x,pointlist[i].y,4,4);
 	}
 
 	var triangulations= bowyerWatson(pointlist);
+	console.log(triangulations.length);
 	for (var i = 0; i < triangulations.length; i++) {
 		if (triangulations[i] != null) {
 
-			triangulations[i].draw();
+			triangulations[i].drawLine();
 		}
 	}	
 });
