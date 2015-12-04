@@ -58,6 +58,10 @@ function Triangle(p1, p2, p3) {
 	this.p2 = p2;
 	this.p3 = p3;
 	this.points = [p1,p2,p3];
+	this.e1 = new Edge(p1,p2);
+	this.e2 = new Edge(p1,p3);
+	this.e3 = new Edge(p2,p3);
+	this.edges = [this.e1,this.e2,this.e3];
 	this.draw = function() {
 		ctx.beginPath();
 		var x = p1.x;
@@ -70,15 +74,26 @@ function Triangle(p1, p2, p3) {
 		y = p3.y;
 		ctx.lineTo(x,y);
 		var grd=ctx.createLinearGradient(p1.x,p1.y,p2.x,p2.y);
-		console.log(c2);
 		var c1 = getRandomColor();
-		console.log(c1);
 		var c2 = getRandomColor();
-		console.log(c2);
 		grd.addColorStop(0,c1);
 		grd.addColorStop(1,c2);
 		ctx.fillStyle = grd;
 		ctx.fill();
+	}
+	this.drawLine = function() {
+		ctx.beginPath();
+		var x = p1.x;
+		var y = p1.y;
+		ctx.moveTo(x,y);
+		x = p2.x;
+		y = p2.y;
+		ctx.lineTo(x,y);
+		x = p3.x;
+		y = p3.y;
+		ctx.lineTo(x,y);
+		ctx.closePath();
+		ctx.stroke();
 	}
 }
 
@@ -102,7 +117,7 @@ function circumCenter(t) {
 	var Cx = t.p3.x;
 	var Cy = t.p3.y;
 	var dA = Ax*Ax + Ay*Ay;
-	var dB = Bx*Bx + Bx*By;
+	var dB = Bx*Bx + By*By;
 	var dC = Cx*Cx + Cy*Cy;
 
 	var x = ((dA*(Cy-By) + dB*(Ay-Cy) + dC*(By-Ay))) /  (2*(Ax*(Cy-By) + Bx*(Ay-Cy) + Cx*(By-Ay)))
@@ -128,61 +143,64 @@ function pointInside(p, t) {
 	}
 }	
 
-function nonSharedEdges(t, triangles) {
-	var nonShared = [];
-	for(var i = 0; i < triangles.length; i++) {
-		var points = triangles[i].points;
-		if(points.indexOf(t.p1) == -1) {
-			nonShared.push(new Edge(t.p1, t.p2));
-			nonShared.push(new Edge(t.p1, t.p3));
-		}
-		if (points.indexOf(t.p2) == -1) {
-			nonShared.push(new Edge(t.p2, t.p1));
-			nonShared.push(new Edge(t.p2, t.p3));
-		}
-		if (points.indexOf(t.p3) == -1) {
-			nonShared.push(new Edge(t.p3, t.p2));
-			nonShared.push(new Edge(t.p3, t.p1));
-		}
+function equalPoint(p1,p2) {
+	if (p1.x == p2.x && p1.y == p2.y) {
+		return true;
+	} else {
+		return false;
 	}
-	return nonShared;
 }
 
-function pushFirstPoint(point, triangulation) {
-	var supertri = triangulation[0];
-	var tri1 = new Triangle(point, supertri.p1, supertri.p2);
-	var tri2 = new Triangle(point, supertri.p1, supertri.p3);
-	var tri3 = new Triangle(point, supertri.p2, supertri.p3);
-	triangulation.push(tri1);
-	triangulation.push(tri2);
-	triangulation.push(tri3);
+function equalEdge(e1,e2) {
+	if ((equalPoint(e1.start, e2.start) && equalPoint(e1.end, e2.end)) || (equalPoint(e1.end, e2.start) && equalPoint(e1.start, e2.end))) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+function removeDuplicates(array) {
+	var unique = [];
+	for( var i = 0; i < array.length; i++) {
+		var match = 0;
+		for (var j = 0; j < array.length; j++) {
+			if(i != j) {
+				if (equalEdge(array[i],array[j])) {
+					match++;
+				}
+			}
+		}
+		if (match == 0) {
+			unique.push(array[i]);
+		}
+	}
+	return unique;
+}
+
+function handleBadTriangles(badTriangles) {
+	var allEdges = [];
+	for (var i = 0; i < badTriangles.length; i++) {
+		for (var j = 0; j < 3; j++) {
+			allEdges.push(badTriangles[i].edges[j]);
+		}
+	}
+	uniqueEdges = removeDuplicates(allEdges);
+	return uniqueEdges;
 }
 
 function bowyerWatson(pointlist) {
 	var triangulation = [];
 	var superTri = createSuper(pointlist);
 	triangulation.push(superTri);
-	pushFirstPoint(pointlist[0], triangulation);
-	for (var i = 1; i < pointlist.length -3 ; i++) {
+	for (var i = 0; i < pointlist.length -3 ; i++) {
 		var	badTriangles = [];
-		for (var j = 1; j < triangulation.length; j++) {
+		for (var j = triangulation.length-1; j >= 0; j--) {
 			if (pointInside(pointlist[i], triangulation[j])) {
 				badTriangles.push(triangulation[j]);
+				triangulation.splice(j,1);
 			}
 		}
-		for (var k = 0; k < badTriangles.length; k++) {
-			var index = triangulation.indexOf(badTriangles[k]);
-			if(index > -1) {
-				triangulation.splice(index,1);
-			}
-		}
-		var	polygon = [];
-		for (var n = 0; n < badTriangles.length; n++) {
-			var nonShared = nonSharedEdges(badTriangles[n], badTriangles);
-			for (var k = 0; k < nonShared.length; k++) {
-				polygon.push(nonShared[k]);
-			}
-		}
+		var	polygon = handleBadTriangles(badTriangles);
 		for(var l = 0; l < polygon.length; l++) {
 			var p1 = polygon[l].start;
 			var p2 = polygon[l].end;
@@ -192,10 +210,10 @@ function bowyerWatson(pointlist) {
 		}
 
 	}
-	var toBeCleaned = [];
-	for (var i = 0; i < triangulation.length; i++) {
+	for (var i = triangulation.length -1; i >= 0; i--) {
 		if (superTri.points.indexOf(triangulation[i].p1) > -1 || superTri.points.indexOf(triangulation[i].p2) > -1 || superTri.points.indexOf(triangulation[i].p3) > -1) {
-			triangulation[i] = null;
+			triangulation.splice(i,1);
+
 		}
 	}
 	return triangulation;
@@ -207,9 +225,9 @@ $(document).ready(function(){
 
 	var pointlist = [];
 
-	for (var i = 0; i < 6; i++) {
-		var x = rInt(50, 850);
-		var y = rInt(50,x);
+	for (var i = 0; i < 130;i++) {
+		var x = rInt(80, 800);
+		var y = rInt(80,x);
 		pointlist.push(new Point(x,y));
 	}
 
@@ -218,7 +236,7 @@ $(document).ready(function(){
 	pointlist.push(new Point(850,850));
 
 	for (var i = 0; i < pointlist.length; i++) {
-		ctx.fillRect(pointlist[i].x,pointlist[i].y,2,2);
+		ctx.fillRect(pointlist[i].x,pointlist[i].y,4,4);
 	}
 
 	var triangulations= bowyerWatson(pointlist);
