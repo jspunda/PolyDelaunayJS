@@ -27,9 +27,31 @@ function getRandomColor() {
   return hexColor.toUpperCase();
 }
 
+function ColorScheme(colors) {
+	var colors = colors;
+
+	this.getRandom = function() {
+		var randomIndex = rInt(0, colors.length-1);
+		return colors[randomIndex];
+	}
+
+	this.addColor = function(color) {
+		colors.push(color);
+	}
+
+	this.getAll = function() {
+		return colors;
+	}
+}
+
+
 function Point(x,y) {
 	this.x = x;
 	this.y = y;	
+	this.draw = function() {
+		ctx.fillStyle = 'Black';
+		ctx.fillRect(x,y,3,3);
+	}
 }
 
 function dist(p1,p2) {
@@ -41,16 +63,6 @@ function dist(p1,p2) {
 function Edge(start, end) {
 	this.start = start;
 	this.end = end;
-	this.draw = function() {
-		ctx.beginPath();
-		var x = start.x;
-		var y = start.y;
-		ctx.moveTo(x,y);
-		x = end.x;
-		y = end.y;
-		ctx.lineTo(x,y);
-		ctx.stroke();
-	}
 }
 
 function Triangle(p1, p2, p3) {
@@ -62,7 +74,9 @@ function Triangle(p1, p2, p3) {
 	this.e2 = new Edge(p1,p3);
 	this.e3 = new Edge(p2,p3);
 	this.edges = [this.e1,this.e2,this.e3];
-	this.draw = function() {
+	this.circum = circumCenter(this);
+
+	this.draw = function(colorScheme) {
 		ctx.beginPath();
 		var x = p1.x;
 		var y = p1.y;
@@ -74,13 +88,14 @@ function Triangle(p1, p2, p3) {
 		y = p3.y;
 		ctx.lineTo(x,y);
 		var grd=ctx.createLinearGradient(p1.x,p1.y,p2.x,p2.y);
-		var c1 = getRandomColor();
-		var c2 = getRandomColor();
+		var c1 = colorScheme.getRandom();
+		var c2 = colorScheme.getRandom();
 		grd.addColorStop(0,c1);
 		grd.addColorStop(1,c2);
 		ctx.fillStyle = grd;
 		ctx.fill();
 	}
+
 	this.drawLine = function() {
 		ctx.beginPath();
 		var x = p1.x;
@@ -133,7 +148,7 @@ function circumRadius(t) {
 }	
 
 function pointInside(p, t) {
-	var center = circumCenter(t);
+	var center = t.circum;
 	var dist1 = dist(t.p1, center);
 	var dist2 = dist(p, center);
 	if (dist2 > dist1) {
@@ -143,7 +158,7 @@ function pointInside(p, t) {
 	}
 }	
 
-function equalPoint(p1,p2) {
+function comparePoint(p1,p2) {
 	if (p1.x == p2.x && p1.y == p2.y) {
 		return true;
 	} else {
@@ -151,8 +166,8 @@ function equalPoint(p1,p2) {
 	}
 }
 
-function equalEdge(e1,e2) {
-	if ((equalPoint(e1.start, e2.start) && equalPoint(e1.end, e2.end)) || (equalPoint(e1.end, e2.start) && equalPoint(e1.start, e2.end))) {
+function compareEdge(e1,e2) {
+	if ((comparePoint(e1.start, e2.start) && comparePoint(e1.end, e2.end)) || (comparePoint(e1.end, e2.start) && comparePoint(e1.start, e2.end))) {
 		return true;
 	} else {
 		return false;
@@ -165,7 +180,7 @@ function removeDuplicates(array) {
 		var match = 0;
 		for (var j = 0; j < array.length; j++) {
 			if(i != j) {
-				if (equalEdge(array[i],array[j])) {
+				if (compareEdge(array[i],array[j])) {
 					match++;
 				}
 			}
@@ -213,39 +228,42 @@ function bowyerWatson(pointlist) {
 	for (var i = triangulation.length -1; i >= 0; i--) {
 		if (superTri.points.indexOf(triangulation[i].p1) > -1 || superTri.points.indexOf(triangulation[i].p2) > -1 || superTri.points.indexOf(triangulation[i].p3) > -1) {
 			triangulation.splice(i,1);
-
 		}
 	}
 	return triangulation;
-
 }
 
 
 $(document).ready(function(){
 
 	var pointlist = [];
+	var colors = ['#eef3f3', '#517aa7', '#3b4891', '#75b0d7', '#3e2a53'];
+	var colorScheme = new ColorScheme(colors);
 
-	for (var i = 0; i < 500; i++){
+	//Randomly adding points to the pointlist (within canvas range)
+	for (var i = 0; i < 9555; i++){
 		var x = rInt(0, 1920);
 		var y = rInt(0,1080);
 		pointlist.push(new Point(x,y));
 	}
-
+	
+	//Creating supertriangle points
 	pointlist.push(new Point(-1000,-100));
 	pointlist.push(new Point(3900,-100));
 	pointlist.push(new Point(850,12850));
 
-
+	//Drawing points in pointlist
 	for (var i = 0; i < pointlist.length; i++) {
-		//ctx.fillRect(pointlist[i].x,pointlist[i].y,4,4);
+		//pointlist[i].draw();
 	}
-
+	
+	//Start building triangulation and drawing the output set
 	var triangulations= bowyerWatson(pointlist);
 	console.log(triangulations.length);
 	for (var i = 0; i < triangulations.length; i++) {
 		if (triangulations[i] != null) {
+			triangulations[i].draw(colorScheme);
 
-			triangulations[i].drawLine();
 		}
 	}	
 });
