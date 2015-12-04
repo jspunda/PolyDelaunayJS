@@ -44,7 +44,6 @@ function ColorScheme(colors) {
 	}
 }
 
-
 function Point(x,y) {
 	this.x = x;
 	this.y = y;	
@@ -77,6 +76,8 @@ function Triangle(p1, p2, p3) {
 	this.circum = circumCenter(this);
 
 	this.draw = function(colorScheme) {
+		ctx.lineJoin = 'round';
+		ctx.lineWidth = 1;
 		ctx.beginPath();
 		var x = p1.x;
 		var y = p1.y;
@@ -92,7 +93,10 @@ function Triangle(p1, p2, p3) {
 		var c2 = colorScheme.getRandom();
 		grd.addColorStop(0,c1);
 		grd.addColorStop(1,c2);
+		ctx.closePath();
 		ctx.fillStyle = grd;
+		ctx.strokeStyle = grd;
+		ctx.stroke();
 		ctx.fill();
 	}
 
@@ -223,7 +227,6 @@ function bowyerWatson(pointlist) {
 			var	newTri = new Triangle(p1,p2,p3);
 			triangulation.push(newTri);
 		}
-
 	}
 	for (var i = triangulation.length -1; i >= 0; i--) {
 		if (superTri.points.indexOf(triangulation[i].p1) > -1 || superTri.points.indexOf(triangulation[i].p2) > -1 || superTri.points.indexOf(triangulation[i].p3) > -1) {
@@ -233,37 +236,99 @@ function bowyerWatson(pointlist) {
 	return triangulation;
 }
 
-
 $(document).ready(function(){
+	var Delaunay = function(pts){
+		this.points = pts;
+		this.triangulation = [];
+		this.globalTriangles = [];
+		this.accentedTriangles = [];
+		
+		this.colorGlobal1 = '#eef3f3';
+		this.colorGlobal2 = '#7cbee6';
+		this.colorGlobal3 = '#d1e0f3';
+		this.colorGlobal4 = '#e1f1f6';
+		this.colorAccent1 = '#fd5e62';
+		this.colorAccent2 = '#cb3f47';
+		this.colorAccent3 = '#ffd2b8';
+		this.colorAccent4 = '#4b77ad';
+		this.colorAccent5 = '#3d3b6e';
 
-	var pointlist = [];
-	var colors = ['#eef3f3', '#517aa7', '#3b4891', '#75b0d7', '#3e2a53'];
-	var colorScheme = new ColorScheme(colors);
+		this.triangulate = function() {
+			this.list = [];
+			this.globalTriangles=[];
+			this.accentedTriangles = [];
 
-	//Randomly adding points to the pointlist (within canvas range)
-	for (var i = 0; i < 9555; i++){
-		var x = rInt(0, 1920);
-		var y = rInt(0,1080);
-		pointlist.push(new Point(x,y));
-	}
-	
-	//Creating supertriangle points
-	pointlist.push(new Point(-1000,-100));
-	pointlist.push(new Point(3900,-100));
-	pointlist.push(new Point(850,12850));
+			for (var i = 0; i < this.points; i++){
+				var x = rInt(0, c.width);
+				var y = rInt(0,c.height);
+				this.list.push(new Point(x,y));
+			}
+			
+			this.list.push(new Point(-1000,-100));
+			this.list.push(new Point(3900,-100));
+			this.list.push(new Point(850,12850));
 
-	//Drawing points in pointlist
-	for (var i = 0; i < pointlist.length; i++) {
-		//pointlist[i].draw();
-	}
-	
-	//Start building triangulation and drawing the output set
-	var triangulations= bowyerWatson(pointlist);
-	console.log(triangulations.length);
-	for (var i = 0; i < triangulations.length; i++) {
-		if (triangulations[i] != null) {
-			triangulations[i].draw(colorScheme);
+			this.triangulation = bowyerWatson(pointlist.list);
+			for (var i = 0; i < this.triangulation.length; i++) {
+				if(rInt(1,10) > 1) {
+					this.globalTriangles.push(this.triangulation[i]);
+				} else {
+					this.accentedTriangles.push(this.triangulation[i]);
+				}
+			}
+			this.colorFill();
+			this.triangulation = [];
+		};
 
-		}
-	}	
-});
+		this.colorFill = function(random) {
+			ctx.clearRect(0, 0, c.width, c.height);	
+			var globalColors, accentColors;
+			if (random) {
+				var globals = [];
+				var accents = [];
+				for (var i = 0; i < 4; i++) {
+					globals.push(getRandomColor());
+				}
+				globalColors = new ColorScheme(globals);
+				for (var i = 0; i < 5; i++) {
+					accents.push(getRandomColor());
+				}
+				accentColors = new ColorScheme(accents);
+			} else {
+				globalColors = new ColorScheme([this.colorGlobal1,this.colorGlobal2, this.colorGlobal3, this.colorGlobal4]);
+				accentColors = new ColorScheme([this.colorAccent1,this.colorAccent2, this.colorAccent3, this.colorAccent4, this.colorAccent5]);
+			}
+
+			for (var i = 0; i < this.globalTriangles.length;i++) {
+				this.globalTriangles[i].draw(globalColors);
+			}
+			for (var i = 0; i < this.accentedTriangles.length; i++) {
+				this.accentedTriangles[i].draw(accentColors);
+			}
+		};
+
+		this.randomFill = function() {
+			this.colorFill(true);
+		};
+
+	};
+
+	var pointlist = new Delaunay(400);
+	pointlist.triangulate();
+	var gui = new dat.GUI();
+	var triangleFolder = gui.addFolder("Triangles");
+	var colorFolder = gui.addFolder("Colors");
+   	triangleFolder.add(pointlist, 'points');
+	triangleFolder.add(pointlist, 'triangulate');
+	colorFolder.addColor(pointlist, 'colorGlobal1');
+	colorFolder.addColor(pointlist, 'colorGlobal2');
+	colorFolder.addColor(pointlist, 'colorGlobal3');
+	colorFolder.addColor(pointlist, 'colorGlobal4');
+	colorFolder.addColor(pointlist, 'colorAccent1');
+	colorFolder.addColor(pointlist, 'colorAccent2');
+	colorFolder.addColor(pointlist, 'colorAccent3');
+	colorFolder.addColor(pointlist, 'colorAccent4');
+	colorFolder.addColor(pointlist, 'colorAccent5');
+	colorFolder.add(pointlist, 'colorFill');
+	colorFolder.add(pointlist, 'randomFill');
+}); 
