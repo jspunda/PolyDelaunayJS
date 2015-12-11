@@ -62,6 +62,19 @@ function dist(p1,p2) {
 function Edge(start, end) {
 	this.start = start;
 	this.end = end;
+	this.draw = function() {
+		this.start.draw();
+		this.end.draw();
+		ctx.strokeStyle = 'Black';
+		ctx.beginPath();
+		var x = start.x;
+		var y = start.y;
+		ctx.moveTo(x,y);
+		x = end.x;
+		y = end.y;
+		ctx.lineTo(x,y);
+		ctx.stroke();
+	}
 }
 
 function Triangle(p1, p2, p3) {
@@ -74,9 +87,10 @@ function Triangle(p1, p2, p3) {
 	this.e3 = new Edge(p2,p3);
 	this.edges = [this.e1,this.e2,this.e3];
 	this.circum = circumCenter(this);
+	this.neighbors = [];
 
 	this.draw = function(colorScheme) {
-		ctx.lineJoin = 'round';
+	//	ctx.lineJoin = 'round';
 		ctx.lineWidth = 1;
 		ctx.beginPath();
 		var x = p1.x;
@@ -98,6 +112,7 @@ function Triangle(p1, p2, p3) {
 		ctx.strokeStyle = grd;
 		ctx.stroke();
 		ctx.fill();
+		this.circum.draw();
 	}
 
 	this.drawLine = function() {
@@ -113,6 +128,20 @@ function Triangle(p1, p2, p3) {
 		ctx.lineTo(x,y);
 		ctx.closePath();
 		ctx.stroke();
+	}
+
+	this.sharesEdge = function(triangle) {
+		var edges = triangle.edges;
+		for (var i = 0; i < edges.length; i++) {
+			if (compareEdge(edges[i], this.e1) || compareEdge(edges[i], this.e2) || compareEdge(edges[i], this.e3)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	this.addNeighbor = function(triangle) {
+		this.neighbors.push(triangle);
 	}
 }
 
@@ -218,15 +247,18 @@ function bowyerWatson(pointlist) {
 				badTriangles.push(triangulation[j]);
 				triangulation.splice(j,1);
 			}
-		}
+		}			this.triangulation = [];
 		var	polygon = handleBadTriangles(badTriangles);
+		var toBeAdded = [];
 		for(var l = 0; l < polygon.length; l++) {
 			var p1 = polygon[l].start;
 			var p2 = polygon[l].end;
 			var p3 = pointlist[i];
 			var	newTri = new Triangle(p1,p2,p3);
 			triangulation.push(newTri);
+			toBeAdded.push(newTri);
 		}
+
 	}
 	for (var i = triangulation.length -1; i >= 0; i--) {
 		if (superTri.points.indexOf(triangulation[i].p1) > -1 || superTri.points.indexOf(triangulation[i].p2) > -1 || superTri.points.indexOf(triangulation[i].p3) > -1) {
@@ -234,6 +266,33 @@ function bowyerWatson(pointlist) {
 		}
 	}
 	return triangulation;
+}
+
+function buildNeighbors(toBeAdded) {
+	for (var k = 0; k < toBeAdded.length; k++) {
+		for (var m = 0; m < toBeAdded.length; m++) {
+			if (m != k && (toBeAdded[k].neighbors.length < 3 || toBeAdded[m].neighbors.length < 3)) {
+				if (toBeAdded[k].sharesEdge(toBeAdded[m])) {
+					toBeAdded[k].addNeighbor(toBeAdded[m]);
+					toBeAdded[m].addNeighbor(toBeAdded[k]);
+				}
+			}
+		}
+	}
+	return toBeAdded;
+}
+
+function voronoi(triangulation) {
+	var triangulation = buildNeighbors(triangulation);
+	var voronoiDiagram = [];
+	for (var i = 0; i < triangulation.length; i++) {
+		console.log(triangulation[i].neighbors);
+		for (var j = 0; j < triangulation[i].neighbors.length; j++) {
+			voronoiDiagram.push(new Edge(triangulation[i].circum, triangulation[i].neighbors[j].circum));
+			triangulation[i].neighbors[j].neighbors.splice(triangulation[i],1);
+		}
+	}
+	return voronoiDiagram;
 }
 
 $(document).ready(function(){
@@ -254,6 +313,7 @@ $(document).ready(function(){
 		this.colorAccent5 = '#3d3b6e';
 
 		this.triangulate = function() {
+			this.triangulation = [];
 			this.list = [];
 			this.globalTriangles=[];
 			this.accentedTriangles = [];
@@ -277,7 +337,6 @@ $(document).ready(function(){
 				}
 			}
 			this.colorFill();
-			this.triangulation = [];
 		};
 
 		this.colorFill = function(random) {
@@ -311,6 +370,14 @@ $(document).ready(function(){
 			this.colorFill(true);
 		};
 
+		this.voronoi = function() {
+			ctx.clearRect(0,0,c.width,c.height);
+			var vorDia = voronoi(this.triangulation);
+			for (var i = 0; i < vorDia.length; i++) {
+				vorDia[i].draw();
+			}
+		}
+
 	};
 
 	var pointlist = new Delaunay(400);
@@ -318,6 +385,8 @@ $(document).ready(function(){
 	var gui = new dat.GUI();
 	var triangleFolder = gui.addFolder("Triangles");
 	var colorFolder = gui.addFolder("Colors");
+	var voroFolder = gui.addFolder("Voronoi");
+	voroFolder.add(pointlist, 'voronoi');
    	triangleFolder.add(pointlist, 'points');
 	triangleFolder.add(pointlist, 'triangulate');
 	colorFolder.addColor(pointlist, 'colorGlobal1');
