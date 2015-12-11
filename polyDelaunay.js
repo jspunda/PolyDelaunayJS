@@ -47,9 +47,19 @@ function ColorScheme(colors) {
 function Point(x,y) {
 	this.x = x;
 	this.y = y;	
+	this.outgoing = [];
+	this.incoming = [];
 	this.draw = function() {
 		ctx.fillStyle = 'Black';
 		ctx.fillRect(x,y,3,3);
+	}
+
+	this.addOutgoing = function(edge) {
+		this.outgoing.push(edge);
+	}
+
+	this.addIncoming = function(edge) {
+		this.incoming.push(edge);
 	}
 }
 
@@ -62,10 +72,13 @@ function dist(p1,p2) {
 function Edge(start, end) {
 	this.start = start;
 	this.end = end;
+
+	start.addOutgoing(this);
+	end.addIncoming(this);
+
 	this.draw = function() {
-		this.start.draw();
-		this.end.draw();
 		ctx.strokeStyle = 'Black';
+		ctx.lineWidth=1;
 		ctx.beginPath();
 		var x = start.x;
 		var y = start.y;
@@ -90,7 +103,7 @@ function Triangle(p1, p2, p3) {
 	this.neighbors = [];
 
 	this.draw = function(colorScheme) {
-	//	ctx.lineJoin = 'round';
+		ctx.lineJoin = 'round';
 		ctx.lineWidth = 1;
 		ctx.beginPath();
 		var x = p1.x;
@@ -112,7 +125,6 @@ function Triangle(p1, p2, p3) {
 		ctx.strokeStyle = grd;
 		ctx.stroke();
 		ctx.fill();
-		this.circum.draw();
 	}
 
 	this.drawLine = function() {
@@ -271,10 +283,9 @@ function bowyerWatson(pointlist) {
 function buildNeighbors(toBeAdded) {
 	for (var k = 0; k < toBeAdded.length; k++) {
 		for (var m = 0; m < toBeAdded.length; m++) {
-			if (m != k && (toBeAdded[k].neighbors.length < 3 || toBeAdded[m].neighbors.length < 3)) {
+			if (m != k && toBeAdded[k].neighbors.length < 3 && toBeAdded[m].neighbors.length < 3) {
 				if (toBeAdded[k].sharesEdge(toBeAdded[m])) {
 					toBeAdded[k].addNeighbor(toBeAdded[m]);
-					toBeAdded[m].addNeighbor(toBeAdded[k]);
 				}
 			}
 		}
@@ -285,11 +296,10 @@ function buildNeighbors(toBeAdded) {
 function voronoi(triangulation) {
 	var triangulation = buildNeighbors(triangulation);
 	var voronoiDiagram = [];
-	for (var i = 0; i < triangulation.length; i++) {
-		console.log(triangulation[i].neighbors);
-		for (var j = 0; j < triangulation[i].neighbors.length; j++) {
+	for (var i = triangulation.length-1; i >= 0; i--) {
+		for (var j = triangulation[i].neighbors.length - 1; j >=0; j--) {
 			voronoiDiagram.push(new Edge(triangulation[i].circum, triangulation[i].neighbors[j].circum));
-			triangulation[i].neighbors[j].neighbors.splice(triangulation[i],1);
+			triangulation[i].neighbors[j].neighbors.splice(triangulation[i].neighbors[j].neighbors.indexOf(triangulation[i]),1);
 		}
 	}
 	return voronoiDiagram;
